@@ -20,7 +20,7 @@ typedef enum {
   PRINT = 14,   // print stack top
   POP = 15,     // throw away top of the stack
   HALT = 16
-} Bytecode;
+} is;
 
 typedef struct {
   int *data;
@@ -96,9 +96,27 @@ void vm_exec(Vm *vm) { // TODO fix code data type
         vm->ip++;
         value = vm->global[addr];
 
-         // store at the top  of the stack
+         // store it at the top of the stack
         vm->sp++;
         vm->stack[vm->sp] = value;
+        break;
+
+      case BR:
+        vm->ip = vm->code[vm->ip++];
+        break;
+
+      case BRT:
+        addr = vm->code[vm->ip++];
+        if (vm->stack[vm->sp] == true) {
+         vm->ip = addr; 
+        }
+        break;
+
+      case BRF:
+        addr = vm->code[vm->ip++];
+        if (vm->stack[vm->sp] == false) {
+         vm->ip = addr; 
+        }
         break;
       
       case HALT:
@@ -116,7 +134,11 @@ int main() {
     HALT
   };
 
-  Vm *vm = vm_init(program, 0, 1, 8);
+  int main_ip = 0;
+  int datasize = 1;
+  int codesize = 8;
+
+  Vm *vm = vm_init(program, main_ip, datasize, codesize);
   vm->trace = true;
   vm_exec(vm);
 
