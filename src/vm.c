@@ -13,13 +13,15 @@ typedef enum {
   BRT = 7,      // branch if true
   BRF = 8,      // branch if false
   ICONST = 9,   // push const int
-  LOAD = 10,    // load from local
+  LOAD = 10,    // load from current frame
   GLOAD = 11,   // load from global
   STORE = 12,   // store in local
   GSTORE = 13,  // store in global
   PRINT = 14,   // print stack top
   POP = 15,     // throw away top of the stack
-  HALT = 16
+  CALL = 16,
+  RET = 17,
+  HALT = 18
 } is;
 
 typedef struct {
@@ -54,6 +56,7 @@ void vm_exec(Vm *vm) { // TODO fix code data type
   int opcode;
   int value;
   int addr;
+  int nargs;
 
   while (vm->ip < vm->codesize) {
     // fetch
@@ -123,9 +126,36 @@ void vm_exec(Vm *vm) { // TODO fix code data type
         // get offset
         value = vm->code[vm->ip++];
         vm->sp++;
-        vm->stack[vm->sp] = vm->stack[vm->fp + offset];
+        vm->stack[vm->sp] = vm->stack[vm->fp + value];
         break;
       
+      case CALL:
+        // we assume that args have been already pushed on the stack
+        addr = vm->code[vm->ip++];    // target addr function
+        nargs = vm->code[vm->ip++];   // how many args
+        vm->stack[vm->sp++] = nargs;   // save nargs on stack
+        vm->stack[vm->sp++] = vm->fp; // save current frame pointer
+        vm->stack[vm->sp++] = vm->sp;  // save current ip
+
+        vm->fp = vm->sp;              // make room for locals
+        vm->ip = addr;                // jump to the function
+
+        break;
+
+      case RET:
+        value = vm->stack[vm->sp--];    // pop return value
+        vm->sp = vm->fp;                // jump over locals
+        vm->ip = vm->stack[vm->sp--];   // get return address
+        vm->fp = vm->stack[vm->sp--];   // restore fp
+        
+        nargs = vm->stack[vm->sp--];    // how many args do we need to throw away?
+        vm->sp -= nargs;
+
+        vm->sp++;
+        vm->stack[vm->sp] = value;      // save return value on stack
+        break;
+
+
       case HALT:
         return;
     }
@@ -133,17 +163,34 @@ void vm_exec(Vm *vm) { // TODO fix code data type
 }
 
 int main() {
+  // a beautiful factorial program
   int program[] = {
-    ICONST, 99,
-    GSTORE, 0,
-    GLOAD, 0,
-    PRINT,
-    HALT
+                    // address
+    LOAD, -3,       // 0
+    ICONST, 2,      // 2
+    ILT,            // 4
+    BRF, 10,        // 5
+    ICONST, 1,      // 7
+    RET,            // 9
+
+    LOAD, -3,       // 10: load n on the stack
+    LOAD, -3,       // 12: load n on the stack 
+    ICONST, 1,      // 14: and subtract 1 to it
+    ISUB,           // 16:
+    CALL, 0, 1,     // 17: call fn and save result on the stack
+    IMUL,           // 20: multiply the result with the previous n saved on the stack
+
+
+    // main
+    ICONST, 5,  // 22
+    CALL, 0, 1, // 24
+    PRINT,      // 26
+    HALT        // 27
   };
 
-  int main_ip = 0;
+  int main_ip = 22;
   int datasize = 1;
-  int codesize = 8;
+  int codesize = 28;
 
   Vm *vm = vm_init(program, main_ip, datasize, codesize);
   vm->trace = true;
