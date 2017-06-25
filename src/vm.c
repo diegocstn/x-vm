@@ -118,6 +118,13 @@ void vm_exec(Vm *vm) { // TODO fix code data type
          vm->ip = addr; 
         }
         break;
+
+      case LOAD:
+        // get offset
+        value = vm->code[vm->ip++];
+        vm->sp++;
+        vm->stack[vm->sp] = vm->stack[vm->fp + offset];
+        break;
       
       case HALT:
         return;
