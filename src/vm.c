@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "isa.h"
+#include "stack.h"
 
 typedef enum { false, true } bool;
 
@@ -18,15 +19,15 @@ typedef struct {
   int fp;
 } Vm;
 
-#define STACK_SIZE 100
+#define STACK_SIZE 10
 
 
 Vm *vm_init(int code[], int main, int datasize, int codesize) {
   Vm *machine = malloc(sizeof(Vm));
   machine->code = code;
   machine->codesize = codesize;
-  machine->global = malloc(datasize * sizeof(int));
-  machine->stack = malloc(STACK_SIZE * sizeof(int));
+  machine->global = calloc(datasize, sizeof(int));
+  machine->stack = calloc(STACK_SIZE, sizeof(int));
   machine->sp = -1;
   machine->ip = main;
 
@@ -36,18 +37,13 @@ Vm *vm_init(int code[], int main, int datasize, int codesize) {
 void vm_exec(Vm *vm) { // TODO fix code data type
   int opcode;
   int value;
+  int value2;
   int addr;
   int nargs;
 
   while (vm->ip < vm->codesize) {
     // fetch
     opcode = vm->code[vm->ip];
-
-    // trace
-    if (vm->trace) {
-      // TODO print stack
-      fprintf( stderr, "%04d: %s\n", vm->ip, opname_from_code(opcode));
-    }
 
     vm->ip++;
     switch (opcode) {
@@ -103,6 +99,16 @@ void vm_exec(Vm *vm) { // TODO fix code data type
         }
         break;
 
+      case ILT:
+        value2 = vm->code[vm->ip++];
+        value = vm->code[vm->ip++];
+        if (value < value2) {
+          vm->stack[vm->sp] = true;
+        } else {
+          vm->stack[vm->sp] = false;
+        }
+        break;
+
       case LOAD:
         // get offset
         value = vm->code[vm->ip++];
@@ -138,7 +144,16 @@ void vm_exec(Vm *vm) { // TODO fix code data type
 
 
       case HALT:
+        fprintf( stderr, "%04d: %s", vm->ip, opname_from_code(opcode));
+        stack_print(vm->stack, STACK_SIZE);
+        fprintf(stderr, "\n");
         return;
+    }
+    // trace
+    if (vm->trace) {
+      fprintf( stderr, "%04d: %s", vm->ip, opname_from_code(opcode));
+      stack_print(vm->stack, STACK_SIZE);
+      fprintf(stderr, "\n");
     }
   }
 }
@@ -169,7 +184,7 @@ int main() {
     HALT        // 27
   };
 
-  int main_ip = 22;
+  int main_ip = 21;
   int datasize = 1;
   int codesize = 28;
 

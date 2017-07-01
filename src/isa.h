@@ -8,7 +8,7 @@ typedef enum {
   BRT = 7,      // branch if true
   BRF = 8,      // branch if false
   ICONST = 9,   // push const int
-  LOAD = 10,    // load from current frame
+  LOAD = 10,    // load from an offset relative to current frame (fp)
   GLOAD = 11,   // load from global
   STORE = 12,   // store in local
   GSTORE = 13,  // store in global
